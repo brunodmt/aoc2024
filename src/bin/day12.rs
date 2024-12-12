@@ -32,76 +32,7 @@ impl Plot {
     }
 }
 
-fn research(puzzle: &mut Vec<Vec<Plot>>, from: Position) -> Solution {
-    let mut perimeter = 0;
-    let mut area = 1;
-    let plant = puzzle[from.0][from.1].plant;
-    puzzle[from.0][from.1].researched = true;
-
-    if from.0 > 0 && puzzle[from.0-1][from.1].plant == plant {
-        if !puzzle[from.0-1][from.1].researched {
-            let (i, j) = (from.0 - 1, from.1);
-            let (p, a) = research(puzzle, (i,j));
-            perimeter += p;
-            area += a;
-        }
-    } else {
-        perimeter += 1;
-    }
-
-    if from.0 < puzzle.len() - 1 && puzzle[from.0+1][from.1].plant == plant {
-        if !puzzle[from.0+1][from.1].researched {
-            let (i, j) = (from.0 + 1, from.1);
-            let (p, a) = research(puzzle, (i,j));
-            perimeter += p;
-            area += a;
-        }
-    } else {
-        perimeter += 1;
-    }
-
-    if from.1 > 0 && puzzle[from.0][from.1-1].plant == plant {
-        if !puzzle[from.0][from.1-1].researched {
-            let (i, j) = (from.0, from.1 - 1);
-            let (p, a) = research(puzzle, (i,j));
-            perimeter += p;
-            area += a;
-        }
-    } else {
-        perimeter += 1;
-    }
-
-    if from.1 < puzzle[0].len() - 1 && puzzle[from.0][from.1+1].plant == plant {
-        if !puzzle[from.0][from.1+1].researched {
-            let (i, j) = (from.0, from.1 + 1);
-            let (p, a) = research(puzzle, (i,j));
-            perimeter += p;
-            area += a;
-        }
-    } else {
-        perimeter += 1;
-    }
-
-    (perimeter, area)
-}
-
-fn problem1(input: &str) -> i64 {
-    let puzzle_str: String = fs::read_to_string(input_path(input)).unwrap();
-    let mut puzzle: Vec<Vec<Plot>> = puzzle_str.lines().map(|l| l.chars().map(|c| Plot::new(c)).collect()).collect();
-
-    let mut result = 0;
-    for i in 0..puzzle.len() {
-        for j in 0..puzzle[i].len() {
-            if !puzzle[i][j].researched {
-                let (p,a) = research(&mut puzzle, (i, j));
-                result += p * a;
-            }
-        }
-    }
-    return result;
-}
-
-fn research2(puzzle: &mut Vec<Vec<Plot>>, from: Position) -> Solution {
+fn research(puzzle: &mut Vec<Vec<Plot>>, from: Position, bulk_buy: bool) -> Solution {
     let plant = puzzle[from.0][from.1].plant;
     let mut perimeter = 0;
     let mut area = 1;
@@ -125,18 +56,22 @@ fn research2(puzzle: &mut Vec<Vec<Plot>>, from: Position) -> Solution {
     puzzle[from.0][from.1].researched = true;
     puzzle[from.0][from.1].fences.extend(fences.clone());
 
-    for fence in fences {
-        let pcount = plots.clone().filter(|&(i, j)| puzzle[i][j].fences.contains(fence)).count();
-        match pcount {
-            0 => perimeter += 1,
-            2 => perimeter -= 1,
-            _ => {}
+    if bulk_buy {
+        for fence in fences {
+            let pcount = plots.clone().filter(|&(i, j)| puzzle[i][j].fences.contains(fence)).count();
+            match pcount {
+                0 => perimeter += 1,
+                2 => perimeter -= 1,
+                _ => {}
+            }
         }
+    } else {
+        perimeter += fences.count() as i64;
     }
 
     for (i, j) in plots {
         if !puzzle[i][j].researched {
-            let (p, a) = research2(puzzle, (i, j));
+            let (p, a) = research(puzzle, (i, j), bulk_buy);
             perimeter += p;
             area += a;
         }
@@ -145,7 +80,7 @@ fn research2(puzzle: &mut Vec<Vec<Plot>>, from: Position) -> Solution {
     (perimeter, area)
 }
 
-fn problem2(input: &str) -> i64 {
+fn resolve(input: &str, bulk_buy: bool) -> i64 {
     let puzzle_str: String = fs::read_to_string(input_path(input)).unwrap();
     let mut puzzle: Vec<Vec<Plot>> = puzzle_str.lines().map(|l| l.chars().map(|c| Plot::new(c)).collect()).collect();
 
@@ -153,13 +88,21 @@ fn problem2(input: &str) -> i64 {
     for i in 0..puzzle.len() {
         for j in 0..puzzle[i].len() {
             if !puzzle[i][j].researched {
-                let (p,a) = research2(&mut puzzle, (i, j));
+                let (p,a) = research(&mut puzzle, (i, j), bulk_buy);
                 result += p * a;
             }
         }
     }
+    result
+}
 
-    return result;
+fn problem1(input: &str) -> i64 {
+    resolve(input, false)
+}
+
+
+fn problem2(input: &str) -> i64 {
+    resolve(input, true)
 }
 
 fn main() {
