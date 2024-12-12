@@ -106,8 +106,6 @@ fn research2(puzzle: &mut Vec<Vec<Plot>>, from: Position) -> Solution {
     let mut perimeter = 0;
     let mut area = 1;
    
-    puzzle[from.0][from.1].researched = true;
-
     let directions = [(-1,0),(0,1),(1,0),(0,-1)];
     let sides: [Option<(usize, usize)>; 4] = directions.map(|(di, dj)| {
         let i = from.0.checked_add_signed(di)?;
@@ -119,26 +117,24 @@ fn research2(puzzle: &mut Vec<Vec<Plot>>, from: Position) -> Solution {
         }
     });
 
-    let fences: Vec<(isize, isize)> = sides.iter()
-        .enumerate()
-        .filter(|(_, opt)| opt.is_none())
-        .map(|(x,_)| directions[x]).collect();
+    let plots = sides.iter().filter_map(|x| *x);
+    let fences = directions.iter().enumerate().filter(|&(x,_)| {
+        sides[x].is_none()
+    }).map(|(_,d)| d);
 
-    let nexts: Vec<(usize, usize)> = sides.iter()
-        .filter_map(|x| *x).collect();
-    
-    for fence in fences.iter() {
-        let count = nexts.iter().filter(|&(i, j)| puzzle[*i][*j].fences.contains(&(fence.clone()))).count();
-        if count == 0 {
-            perimeter += 1;
-        } else if count == 2 {
-            perimeter -= 1;
+    puzzle[from.0][from.1].researched = true;
+    puzzle[from.0][from.1].fences.extend(fences.clone());
+
+    for fence in fences {
+        let pcount = plots.clone().filter(|&(i, j)| puzzle[i][j].fences.contains(fence)).count();
+        match pcount {
+            0 => perimeter += 1,
+            2 => perimeter -= 1,
+            _ => {}
         }
     }
 
-    puzzle[from.0][from.1].fences.extend(fences);
-
-    for (i, j) in nexts {
+    for (i, j) in plots {
         if !puzzle[i][j].researched {
             let (p, a) = research2(puzzle, (i, j));
             perimeter += p;
