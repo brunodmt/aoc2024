@@ -133,7 +133,7 @@ fn problem1(input: &str) -> Vec<usize> {
 }
 
 fn problem2(input: &str) -> usize {
-     let computer = Computer::from_input(input);
+    let computer = Computer::from_input(input);
  
     let len = computer.memory.len();
     let mut options = vec![0];
