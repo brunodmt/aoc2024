@@ -19,6 +19,17 @@ struct Computer {
 }
 
 impl Computer {
+    const ISA: [fn(&mut Computer);8] = [
+        Computer::adv,
+        Computer::bxl,
+        Computer::bst,
+        Computer::jnz,
+        Computer::bxc,
+        Computer::out,
+        Computer::bdv,
+        Computer::cdv,
+    ];
+
     fn new() -> Computer {
         Computer {
             registers: [0;3],
@@ -26,6 +37,19 @@ impl Computer {
             memory: Vec::new(),
             output: Vec::new(),
         }
+    }
+
+    fn from_input(input: &str) -> Computer {
+        let mut computer = Computer::new();
+        if let Ok(lines) = read_lines(input_path(input)) {
+            let mut lines = lines.flatten();
+            computer.registers[0] = lines.next().unwrap().replace("Register A: ", "").parse().unwrap();
+            computer.registers[1] = lines.next().unwrap().replace("Register B: ", "").parse().unwrap();
+            computer.registers[2] = lines.next().unwrap().replace("Register C: ", "").parse().unwrap();
+            lines.next();
+            computer.memory = lines.next().unwrap().replace("Program: ", "").split(",").map(|x| x.parse::<usize>().unwrap()).collect();
+        }
+        computer
     }
 
     fn get_combo_value(&self, op: usize) -> usize {
@@ -39,8 +63,7 @@ impl Computer {
     fn adv(&mut self) {
         let num = self.registers[0];
         let combo = self.get_combo_value(self.memory[self.pc+1]);
-        let den = 2_usize.pow(combo as u32);
-        let result = num / den;
+        let result = num >> combo;
         self.registers[0] = result;
         self.pc += 2;
     }
@@ -52,7 +75,7 @@ impl Computer {
 
     fn bst(&mut self) {
         let combo = self.get_combo_value(self.memory[self.pc+1]);
-        self.registers[1] = combo % 8;
+        self.registers[1] = combo & 7;
         self.pc += 2;
     }
 
@@ -71,7 +94,7 @@ impl Computer {
 
     fn out(&mut self) {
         let combo = self.get_combo_value(self.memory[self.pc+1]);
-        let result = combo % 8;
+        let result = combo & 7;
         self.output.push(result);
         self.pc += 2;
     }
@@ -79,8 +102,7 @@ impl Computer {
     fn bdv(&mut self) {
         let num = self.registers[0];
         let combo = self.get_combo_value(self.memory[self.pc+1]);
-        let den = 2_usize.pow(combo as u32);
-        let result = num / den;
+        let result = num >> combo;
         self.registers[1] = result;
         self.pc += 2;
     }
@@ -88,41 +110,22 @@ impl Computer {
     fn cdv(&mut self) {
         let num = self.registers[0];
         let combo = self.get_combo_value(self.memory[self.pc+1]);
-        let den = 2_usize.pow(combo as u32);
-        let result = num / den;
+        let result = num >> combo;
         self.registers[2] = result;
         self.pc += 2;
     }
 
     fn run(&mut self) {
-        let insts= [
-            Computer::adv,
-            Computer::bxl,
-            Computer::bst,
-            Computer::jnz,
-            Computer::bxc,
-            Computer::out,
-            Computer::bdv,
-            Computer::cdv,
-        ];
-
         while self.pc < self.memory.len() {
             let inst = self.memory[self.pc];
-            insts[inst](self);
+            Self::ISA[inst](self);
         }
     }
+
 }
 
 fn problem1(input: &str) -> Vec<usize> {
-    let mut computer = Computer::new();
-    if let Ok(lines) = read_lines(input_path(input)) {
-        let mut lines = lines.flatten();
-        computer.registers[0] = lines.next().unwrap().replace("Register A: ", "").parse().unwrap();
-        computer.registers[1] = lines.next().unwrap().replace("Register B: ", "").parse().unwrap();
-        computer.registers[2] = lines.next().unwrap().replace("Register C: ", "").parse().unwrap();
-        lines.next();
-        computer.memory = lines.next().unwrap().replace("Program: ", "").split(",").map(|x| x.parse::<usize>().unwrap()).collect();
-    }
+    let mut computer = Computer::from_input(input);
     println!("Initial state: {:?}", computer);
     computer.run();
     println!("{:?}", computer.output);
@@ -130,27 +133,32 @@ fn problem1(input: &str) -> Vec<usize> {
 }
 
 fn problem2(input: &str) -> usize {
-    let mut computer = Computer::new();
-    if let Ok(lines) = read_lines(input_path(input)) {
-        let mut lines = lines.flatten();
-        computer.registers[0] = lines.next().unwrap().replace("Register A: ", "").parse().unwrap();
-        computer.registers[1] = lines.next().unwrap().replace("Register B: ", "").parse().unwrap();
-        computer.registers[2] = lines.next().unwrap().replace("Register C: ", "").parse().unwrap();
-        lines.next();
-        computer.memory = lines.next().unwrap().replace("Program: ", "").split(",").map(|x| x.parse::<usize>().unwrap()).collect();
-    }
-    let mut a = 0;
-    loop {
-        println!("a={}", a);
-        let mut test_computer = computer.clone();
-        test_computer.registers[0] = a;
-        test_computer.run();
-        if test_computer.output.eq(&test_computer.memory) {
-            break;
+     let computer = Computer::from_input(input);
+ 
+    let len = computer.memory.len();
+    let mut options = vec![0];
+    for i in 1..len+1 {
+        options = options.iter().flat_map(|&o| (0..8).map(move |x| o * 8 + x)).collect();
+        let mut valid_options = Vec::new();
+        for &option in options.iter() {
+            let mut test_computer = computer.clone();
+            test_computer.registers[0] = option;
+            test_computer.run();
+            if test_computer.output.eq(&computer.memory[len-i..]) {
+                valid_options.push(option);
+            }
         }
-        a += 1;
+        options = valid_options;
     }
-    return a;
+
+    let result = *options.iter().min().unwrap();
+    let mut test_computer = computer.clone();
+    test_computer.registers[0] = result;
+    test_computer.run();
+
+    assert_eq!(test_computer.output, test_computer.memory);
+
+    return result;
 }
 
 fn main() {
